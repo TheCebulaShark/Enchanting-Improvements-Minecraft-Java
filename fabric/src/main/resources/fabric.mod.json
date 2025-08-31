@@ -18,6 +18,7 @@
       "org.blahajenjoyer.enchanting_improvements.fabric.EnchantingImprovementsFabric"
     ],
     "client": [
+      "org.blahajenjoyer.enchanting_improvements.client.EnchantingImprovementsClient",
       "org.blahajenjoyer.enchanting_improvements.fabric.client.EnchantingImprovementsFabricClient"
     ]
   },
