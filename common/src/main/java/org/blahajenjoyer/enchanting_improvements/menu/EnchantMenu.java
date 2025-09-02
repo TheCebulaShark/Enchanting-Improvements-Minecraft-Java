@@ -1,6 +1,7 @@
 package org.blahajenjoyer.enchanting_improvements.menu;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -130,5 +131,22 @@ public class EnchantMenu extends AbstractContainerMenu {
         else slot.setChanged();
 
         return newStack;
+    }
+
+    @Override
+    public void removed(Player player) {
+        super.removed(player);
+        if (player.level().isClientSide) return;
+
+        for (int i = 0; i < this.container.getContainerSize(); ++i) {
+            ItemStack stack = this.container.removeItemNoUpdate(i);
+            if (stack.isEmpty()) continue;
+
+            if (!player.isAlive() || (player instanceof ServerPlayer sp && sp.hasDisconnected())) {
+                player.drop(stack, false);
+            } else {
+                player.getInventory().placeItemBackInInventory(stack);
+            }
+        }
     }
 }
