@@ -8,6 +8,7 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
+import org.blahajenjoyer.enchanting_improvements.logic.EnchantingHelper;
 import org.blahajenjoyer.enchanting_improvements.registry.Registries;
 
 import static org.blahajenjoyer.enchanting_improvements.EnchantingImprovements.MOD_ID;
@@ -31,10 +32,24 @@ public class EnchantMenu extends AbstractContainerMenu {
         this.access = access;
 
         // Enchanitng table slots
-        this.addSlot(new HintedSlot(container, SLOT_ITEM,     20, 49, null));
-        this.addSlot(new HintedSlot(container, SLOT_LAPIS,    30, 73, new ResourceLocation(MOD_ID,"item/empty_slot_lapis_lazuli")));
-        this.addSlot(new HintedSlot(container, SLOT_MATERIAL, 10, 73, new ResourceLocation(MOD_ID,"item/empty_slot_material")));
-        this.addSlot(new HintedSlot(container, SLOT_BOOK,     20, 94, new ResourceLocation(MOD_ID,"item/empty_slot_enchanted_book")));
+        this.addSlot(new FilteredHintedSlot(
+                container, SLOT_ITEM, 20, 49,
+                EnchantingHelper::isEnchantable, 1,
+                null));
+
+        this.addSlot(new FilteredHintedSlot(
+                container, SLOT_LAPIS, 30, 73,
+                EnchantingHelper::isLapis, 64,
+                new ResourceLocation(MOD_ID,"item/empty_slot_lapis_lazuli")));
+
+        this.addSlot(new FilteredHintedSlot(
+                container, SLOT_MATERIAL, 10, 73,
+                EnchantingHelper::isMaterial, 64,
+                new ResourceLocation(MOD_ID,"item/empty_slot_material")));
+
+        this.addSlot(new FilteredHintedSlot(container, SLOT_BOOK, 20, 94,
+                EnchantingHelper::isEnchantedBook, 1,
+                new ResourceLocation(MOD_ID,"item/empty_slot_enchanted_book")));
 
         // Players slots
         int startX = 12, startY = 130;
@@ -49,22 +64,71 @@ public class EnchantMenu extends AbstractContainerMenu {
 
     @Override public boolean stillValid(Player player) { return true; }
 
-    @Override //not final
+    private boolean moveToSlot(ItemStack stack, int slotIndex) {
+        Slot dst = this.slots.get(slotIndex);
+        if (!dst.mayPlace(stack)) return false;
+
+        ItemStack existing = dst.getItem();
+        int limit = dst.getMaxStackSize(stack);
+        if (limit <= 0) return false;
+
+        if (existing.isEmpty()) {
+            int toMove = Math.min(limit, stack.getCount());
+            if (toMove <= 0) return false;
+            ItemStack moved = stack.split(toMove);
+            dst.set(moved);
+            dst.setChanged();
+            return true;
+        } else {
+            if (!ItemStack.isSameItemSameTags(existing, stack)) return false;
+            int free = limit - existing.getCount();
+            if (free <= 0) return false;
+            int toMove = Math.min(free, stack.getCount());
+            existing.grow(toMove);
+            stack.shrink(toMove);
+            dst.setChanged();
+            return true;
+        }
+    }
+
+    @Override
     public ItemStack quickMoveStack(Player player, int index) {
-        ItemStack newStack = ItemStack.EMPTY;
         Slot slot = this.slots.get(index);
-        if (slot.hasItem()) {
-            ItemStack stack = slot.getItem();
-            newStack = stack.copy();
-            if (index < MENU_SLOTS) {
-                if (!this.moveItemStackTo(stack, MENU_SLOTS, this.slots.size(), true))
+        if (!slot.hasItem()) return ItemStack.EMPTY;
+
+        ItemStack stack = slot.getItem();
+        ItemStack newStack = stack.copy();
+
+        if (index < MENU_SLOTS) {
+            if (!this.moveItemStackTo(stack, MENU_SLOTS, this.slots.size(), true))
+                return ItemStack.EMPTY;
+            slot.onQuickCraft(stack, newStack);
+        }
+        else {
+            if (EnchantingHelper.isEnchantedBook(stack)) {
+                if (!moveToSlot(stack, SLOT_BOOK)) {
+                    if (!moveToSlot(stack, SLOT_ITEM))
+                        return ItemStack.EMPTY;
+                }
+            } else if (EnchantingHelper.isLapis(stack)) {
+                if (!moveToSlot(stack, SLOT_LAPIS)) {
+                    if (!moveToSlot(stack, SLOT_MATERIAL))
+                        return ItemStack.EMPTY;
+                }
+            } else if (EnchantingHelper.isEnchantable(stack)) {
+                if (!moveToSlot(stack, SLOT_ITEM))
+                    return ItemStack.EMPTY;
+            } else if (EnchantingHelper.isMaterial(stack)) {
+                if (!moveToSlot(stack, SLOT_MATERIAL))
                     return ItemStack.EMPTY;
             } else {
-                if (!this.moveItemStackTo(stack, 0, MENU_SLOTS, false))
-                    return ItemStack.EMPTY;
+                return ItemStack.EMPTY;
             }
-            if (stack.isEmpty()) slot.set(ItemStack.EMPTY); else slot.setChanged();
         }
+
+        if (stack.isEmpty()) slot.set(ItemStack.EMPTY);
+        else slot.setChanged();
+
         return newStack;
     }
 }
