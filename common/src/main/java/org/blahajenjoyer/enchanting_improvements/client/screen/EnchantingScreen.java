@@ -142,9 +142,17 @@ public class EnchantingScreen extends AbstractContainerScreen<EnchantMenu> {
     private int contentW = 210;
     private int contentH = 180;
 
+    private int SEG_LEN = 24;
+    private int SEG_LAST_LEN = 12;
+
     private double panX = 0, panY = 0;
     private boolean dragging = false;
     private double dragLastX = 0, dragLastY = 0;
+
+    private boolean pressedInViewport = false;
+    private double pressX = 0, pressY = 0;
+    private static final double CLICK_DIST_SQ = 4 * 4;
+
     private double zoom = 1.0;
     private static final double MIN_ZOOM = 0.65;
     private static final double MAX_ZOOM = 2.25;
@@ -195,6 +203,17 @@ public class EnchantingScreen extends AbstractContainerScreen<EnchantMenu> {
         }
     }
 
+    static class Node {
+        net.minecraft.world.item.enchantment.Enchantment ench;
+        int level;
+        int cx, cy;
+        boolean hit(double wx, double wy) {
+            int r = BOOK_SIZE / 2;
+            return wx >= cx - r && wx < cx + r && wy >= cy - r && wy < cy + r;
+        }
+    }
+    private final java.util.List<Node> nodes = new java.util.ArrayList<>();
+
 
     private void renderTreeViewport(GuiGraphics g) {
         int vpX0 = leftPos + ENCHANTING_VIEW_START_X;
@@ -232,7 +251,7 @@ public class EnchantingScreen extends AbstractContainerScreen<EnchantMenu> {
 
                 int startX = boundaryX + STEM_THICK;
                 for (int lvl = 1; lvl <= r.maxLvl; lvl++) {
-                    int seg = (lvl < r.maxLvl) ? 24 : 12;
+                    int seg = (lvl < r.maxLvl) ? SEG_LEN : SEG_LAST_LEN;
                     blitHLineFromTex(g, startX, y - HLINE_H / 2, seg);
 
                     int bookCenterX = (lvl < r.maxLvl) ? (startX + seg / 2) : (startX + seg);
@@ -263,20 +282,32 @@ public class EnchantingScreen extends AbstractContainerScreen<EnchantMenu> {
             return;
         }
 
+        boolean isBook = stack.is(Items.BOOK) || stack.is(Items.ENCHANTED_BOOK);
+
         for (var ench : net.minecraft.core.registries.BuiltInRegistries.ENCHANTMENT) {
             if (!ench.isDiscoverable()) continue;
-            if (!ench.canEnchant(stack)) continue;
+
+            boolean applicable = isBook || ench.canEnchant(stack);
+            if (!applicable) continue;
 
             Row r = new Row();
             r.ench = ench;
             r.maxLvl = Math.max(1, ench.getMaxLevel());
 
             Component base = Component.translatable(ench.getDescriptionId());
-
             r.label = Component.translatable(LKEY_LABEL_WRAP, base);
 
             rows.add(r);
             labelWidth = Math.max(labelWidth, this.font.width(r.label));
+        }
+
+        if (rows.isEmpty()) {
+            treeActive = false;
+            nodes.clear();
+            contentW = ENCHANTING_VIEW_WIDTH;
+            contentH = ENCHANTING_VIEW_HEIGHT;
+            panX = panY = 0;
+            return;
         }
 
         rows.sort(java.util.Comparator.comparing(r -> r.label.getString()));
@@ -284,7 +315,7 @@ public class EnchantingScreen extends AbstractContainerScreen<EnchantMenu> {
         int maxLevels = rows.stream().mapToInt(r -> r.maxLvl).max().orElse(1);
         int left = PADDING_X;
         int boundaryX = left + labelWidth + LABEL_GAP;
-        int sumH = (maxLevels - 1) * 24 + 12;
+        int sumH = (maxLevels - 1) * SEG_LEN + SEG_LAST_LEN;
         int treeRight = boundaryX + STEM_THICK + sumH + BOOK_SIZE / 2;
         int top = PADDING_Y;
         int bottom = top + rows.size() * ROW_H;
@@ -292,23 +323,51 @@ public class EnchantingScreen extends AbstractContainerScreen<EnchantMenu> {
         contentW = treeRight + PADDING_X;
         contentH = bottom + PADDING_Y;
 
+        nodes.clear();
+
+        int y = PADDING_Y + ROW_H / 2;
+        for (Row r : rows) {
+            int startX = boundaryX + STEM_THICK;
+            for (int lvl = 1; lvl <= r.maxLvl; lvl++) {
+                int seg = (lvl < r.maxLvl) ? SEG_LEN : SEG_LAST_LEN;
+                int cx  = (lvl < r.maxLvl) ? (startX + seg / 2) : (startX + seg);
+
+                Node n = new Node();
+                n.ench  = r.ench;
+                n.level = lvl;
+                n.cx    = cx;
+                n.cy    = y;
+                nodes.add(n);
+
+                startX += seg;
+            }
+            y += ROW_H;
+        }
+
         clampPan();
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (treeActive  && button == 0 && insideViewport(mouseX, mouseY)) {
-            dragging = true;
-            dragLastX = mouseX;
-            dragLastY = mouseY;
+        if (button == 0 && insideViewport(mouseX, mouseY)) {
+            pressedInViewport = true;
+            pressX = mouseX;
+            pressY = mouseY;
+
+            if (treeActive) {
+                dragging = true;
+                dragLastX = mouseX;
+                dragLastY = mouseY;
+            }
             return true;
         }
+        pressedInViewport = false;
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        if (!treeActive && !insideViewport(mouseX, mouseY)) {
+        if (!treeActive || !insideViewport(mouseX, mouseY)) {
             return super.mouseScrolled(mouseX, mouseY, delta);
         }
 
@@ -345,11 +404,40 @@ public class EnchantingScreen extends AbstractContainerScreen<EnchantMenu> {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (treeActive && button == 0 && dragging) {
+        if (button == 0 && pressedInViewport) {
+            double dx = mouseX - pressX;
+            double dy = mouseY - pressY;
+            boolean isClick = (dx*dx + dy*dy) <= CLICK_DIST_SQ;
+
             dragging = false;
+            pressedInViewport = false;
+
+            if (isClick) {
+                if (tryClickBook(mouseX, mouseY)) return true;
+            }
             return true;
         }
         return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    private boolean tryClickBook(double mouseX, double mouseY) {
+        if (!insideViewport(mouseX, mouseY)) return false;
+        if (!treeActive || nodes.isEmpty())  return false;
+
+        int vpX0 = leftPos + ENCHANTING_VIEW_START_X;
+        int vpY0 = topPos  + ENCHANTING_VIEW_START_Y;
+
+        // współrzędne świata (odwrócenie pan+zoom)
+        double wx = (mouseX - vpX0 - panX) / zoom;
+        double wy = (mouseY - vpY0 - panY) / zoom;
+
+        for (Node n : nodes) {
+            if (n.hit(wx, wy)) {
+                org.blahajenjoyer.enchanting_improvements.net.Network.sendApplyEnchant(n.ench, n.level);
+                return true;
+            }
+        }
+        return false;
     }
 
 

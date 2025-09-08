@@ -51,3 +51,21 @@ shadowJar {
 remapJar {
     input.set shadowJar.archiveFile
 }
+
+sourceSets {
+    main {
+        resources {
+            srcDir project(':common').file('src/generated/resources')
+        }
+    }
+}
+
+tasks.named('runClient') {
+    dependsOn ':common:generateEnchantCosts'
+}
+tasks.named('runServer') {
+    dependsOn ':common:generateEnchantCosts'
+}
+tasks.named('build') {
+    dependsOn ':common:generateEnchantCosts'
+}

@@ -10,3 +10,46 @@ dependencies {
 
     modImplementation "dev.architectury:architectury:$rootProject.architectury_api_version"
 }
+
+sourceSets {
+    main {
+        resources {
+            srcDir 'src/generated/resources'
+        }
+    }
+}
+
+tasks.register('generateEnchantCosts', JavaExec) {
+    group = 'datagen'
+    description = 'Generate enchanting cost JSON files'
+    dependsOn 'compileJava'
+
+    doFirst {
+        delete(
+                "$projectDir/src/generated/resources/data/enchanting_improvements/enchanting_cost",
+                "$projectDir/src/generated/resources/data/enchanting_improvements/enchanting_cost_universal"
+        )
+    }
+
+    classpath = files(sourceSets.main.output.classesDirs, sourceSets.main.compileClasspath)
+    mainClass = 'org.blahajenjoyer.enchanting_improvements.datagen.BuilderDev'
+    args file("$projectDir/src/generated/resources").absolutePath
+}
+
+tasks.named('processResources') {
+    dependsOn tasks.named('generateEnchantCosts')
+}
+
+tasks.register('cleanGenerated') {
+    doLast { delete file('src/generated/resources') }
+}
+tasks.named('clean') {
+    dependsOn tasks.named('cleanGenerated')
+}
+
+jar {
+    exclude('org/blahajenjoyer/enchanting_improvements/datagen/**')
+}
+sourcesJar {
+    exclude('org/blahajenjoyer/enchanting_improvements/datagen/**')
+}
