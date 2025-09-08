@@ -168,7 +168,7 @@ public final class EnchantCostData {
                 .flatMap(rr -> f.apply(rr.rule()));
     }
 
-    static List<MaterialCost> filterEnabled(List<MaterialCost> in) {
+    public static List<MaterialCost> filterEnabled(List<MaterialCost> in) {
         return in.stream().filter(MaterialCost::isEnabled).toList();
     }
 }

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.model.BookModel;
 import net.minecraft.client.model.geom.ModelLayers;
@@ -427,13 +428,14 @@ public class EnchantingScreen extends AbstractContainerScreen<EnchantMenu> {
         int vpX0 = leftPos + ENCHANTING_VIEW_START_X;
         int vpY0 = topPos  + ENCHANTING_VIEW_START_Y;
 
-        // współrzędne świata (odwrócenie pan+zoom)
         double wx = (mouseX - vpX0 - panX) / zoom;
         double wy = (mouseY - vpY0 - panY) / zoom;
 
         for (Node n : nodes) {
             if (n.hit(wx, wy)) {
-                org.blahajenjoyer.enchanting_improvements.net.Network.sendApplyEnchant(n.ench, n.level);
+                boolean shift = Screen.hasShiftDown();
+                org.blahajenjoyer.enchanting_improvements.net.Network
+                        .sendApplyEnchant(n.ench, n.level, shift);
                 return true;
             }
         }

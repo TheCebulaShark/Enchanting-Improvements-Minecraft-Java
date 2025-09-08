@@ -1,7 +1,9 @@
 package org.blahajenjoyer.enchanting_improvements.menu;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -9,6 +11,8 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import org.blahajenjoyer.enchanting_improvements.logic.EnchantingHelper;
 import org.blahajenjoyer.enchanting_improvements.registry.Registries;
 
@@ -61,7 +65,33 @@ public class EnchantMenu extends AbstractContainerMenu {
             this.addSlot(new Slot(inv, hot, startX + hot * 18, startY + 58));
     }
 
+    public BlockPos getTablePos() {
+        return this.access.evaluate((level, pos) -> pos, BlockPos.ZERO);
+    }
 
+    private static int getPowerAt(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return state.is(BlockTags.ENCHANTMENT_POWER_PROVIDER) ? 1 : 0;
+    }
+
+    public static int computeShelfPower(net.minecraft.world.level.Level level, BlockPos tablePos) {
+        int power = 0;
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dz = -1; dz <= 1; ++dz) {
+                if ((dx != 0 || dz != 0)
+                        && level.isEmptyBlock(tablePos.offset(dx, 0, dz))
+                        && level.isEmptyBlock(tablePos.offset(dx, 1, dz))) {
+
+                    power += getPowerAt(level, tablePos.offset(dx * 2, 0, dz * 2));
+                    if (dx != 0 && dz != 0) {
+                        power += getPowerAt(level, tablePos.offset(dx * 2, 0, dz));
+                        power += getPowerAt(level, tablePos.offset(dx, 0, dz * 2));
+                    }
+                }
+            }
+        }
+        return power;
+    }
 
     @Override public boolean stillValid(Player player) { return true; }
 
