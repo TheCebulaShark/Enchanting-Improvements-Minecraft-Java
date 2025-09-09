@@ -17,6 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.blahajenjoyer.enchanting_improvements.menu.EnchantMenu;
 import org.blahajenjoyer.enchanting_improvements.EnchantingImprovements;
+import org.blahajenjoyer.enchanting_improvements.network.EnchantingPackets;
 
 public class EnchantingScreen extends AbstractContainerScreen<EnchantMenu> {
     private static final ResourceLocation BOOK_TEXTURE = new ResourceLocation("textures/entity/enchanting_table_book.png");
@@ -434,7 +435,7 @@ public class EnchantingScreen extends AbstractContainerScreen<EnchantMenu> {
         for (Node n : nodes) {
             if (n.hit(wx, wy)) {
                 boolean shift = Screen.hasShiftDown();
-                org.blahajenjoyer.enchanting_improvements.net.Network
+                EnchantingPackets
                         .sendApplyEnchant(n.ench, n.level, shift);
                 return true;
             }

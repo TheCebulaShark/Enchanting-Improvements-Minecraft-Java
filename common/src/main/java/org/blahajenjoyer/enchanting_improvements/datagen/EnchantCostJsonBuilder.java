@@ -22,21 +22,39 @@ public final class EnchantCostJsonBuilder {
     private EnchantCostJsonBuilder() {}
 
     public static MaterialCost matItem(String id, int min, int max) {
-        return MaterialCost.ofItem(new ResourceLocation(id), min, max);
+        return MaterialCost.ofItem(new ResourceLocation(id), min, max, 1);
     }
     public static MaterialCost matItemIfMod(String id, int min, int max, String modid) {
         var base = MaterialCost.ofItem(new ResourceLocation(id), min, max);
         return new MaterialCost(base.item(), base.tag(), base.count(),
-                Optional.of(List.of(new ModLoadedCondition(modid))));
+                Optional.of(List.of(new ModLoadedCondition(modid))), 1);
     }
 
     public static MaterialCost matTag(String id, int min, int max) {
-        return MaterialCost.ofTag(new ResourceLocation(id), min, max);
+        return MaterialCost.ofTag(new ResourceLocation(id), min, max, 1);
     }
     public static MaterialCost matTagIfMod(String id, int min, int max, String modid) {
         var base = MaterialCost.ofTag(new ResourceLocation(id), min, max);
         return new MaterialCost(base.item(), base.tag(), base.count(),
-                Optional.of(List.of(new ModLoadedCondition(modid))));
+                Optional.of(List.of(new ModLoadedCondition(modid))), 1);
+    }
+
+    public static MaterialCost matItem(String id, int min, int max, int weight) {
+        return MaterialCost.ofItem(new ResourceLocation(id), min, max, weight);
+    }
+    public static MaterialCost matItemIfMod(String id, int min, int max, String modid, int weight) {
+        var base = MaterialCost.ofItem(new ResourceLocation(id), min, max);
+        return new MaterialCost(base.item(), base.tag(), base.count(),
+                Optional.of(List.of(new ModLoadedCondition(modid))), weight);
+    }
+
+    public static MaterialCost matTag(String id, int min, int max, int weight) {
+        return MaterialCost.ofTag(new ResourceLocation(id), min, max, weight);
+    }
+    public static MaterialCost matTagIfMod(String id, int min, int max, String modid, int weight) {
+        var base = MaterialCost.ofTag(new ResourceLocation(id), min, max);
+        return new MaterialCost(base.item(), base.tag(), base.count(),
+                Optional.of(List.of(new ModLoadedCondition(modid))), weight);
     }
 
     public static Path pathSpecific(Path dataRoot, ResourceLocation enchantId) {
@@ -108,9 +126,6 @@ public final class EnchantCostJsonBuilder {
             }
         }
 
-        r.requiresEnchantedBook().ifPresent(v -> root.addProperty("requires_enchanted_book", v));
-        r.overenchanting().ifPresent(v -> root.addProperty("overenchanting", v));
-
         return root;
     }
 
@@ -123,6 +138,10 @@ public final class EnchantCostJsonBuilder {
         cnt.addProperty("min", m.count().min());
         cnt.addProperty("max", m.count().max());
         o.add("count", cnt);
+
+        if (m.weight() != 1) {
+            o.addProperty("weight", m.weight());
+        }
 
         m.conditions().orElse(List.of()).stream().findAny().ifPresent(__ -> {
             JsonArray arr = new JsonArray();

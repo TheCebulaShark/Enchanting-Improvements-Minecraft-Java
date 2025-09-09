@@ -21,8 +21,7 @@ public record UniversalCostRule(
                 EnchantCostRule.CODEC.fieldOf("rule")
                         .orElse(new EnchantCostRule(
                                 Optional.empty(), Optional.empty(), Optional.empty(),
-                                Optional.empty(), Optional.empty(), Optional.empty(),
-                                Optional.empty()
+                                Optional.empty(), Optional.empty()
                         ))
                         .forGetter(PerLevelRule::rule)
         ).apply(i, PerLevelRule::new));

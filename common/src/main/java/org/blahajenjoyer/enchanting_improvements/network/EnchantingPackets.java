@@ -1,4 +1,4 @@
-package org.blahajenjoyer.enchanting_improvements.net;
+package org.blahajenjoyer.enchanting_improvements.network;
 
 import dev.architectury.networking.NetworkManager;
 import dev.architectury.networking.NetworkManager.PacketContext;
@@ -23,6 +23,7 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import org.blahajenjoyer.enchanting_improvements.data.MaterialCost;
 import org.blahajenjoyer.enchanting_improvements.menu.EnchantMenu;
+import org.blahajenjoyer.enchanting_improvements.util.EnchantingHelper;
 
 import java.util.HashMap;
 import java.util.List;
@@ -31,12 +32,12 @@ import java.util.function.Predicate;
 
 import static org.blahajenjoyer.enchanting_improvements.EnchantingImprovements.MOD_ID;
 
-public final class Network {
-    private Network() {}
+public final class EnchantingPackets {
+    private EnchantingPackets() {}
     public static final ResourceLocation APPLY_ENCHANT = new ResourceLocation(MOD_ID, "apply_enchant");
 
     public static void register() {
-        NetworkManager.registerReceiver(NetworkManager.Side.C2S, APPLY_ENCHANT, Network::handleApplyEnchant);
+        NetworkManager.registerReceiver(NetworkManager.Side.C2S, APPLY_ENCHANT, EnchantingPackets::handleApplyEnchant);
     }
 
     /** CLIENT -> SERVER */
@@ -82,10 +83,11 @@ public final class Network {
             Slot bookSlot = menu.getSlot(EnchantMenu.SLOT_BOOK);
             boolean hasOverrideBook = isBookWithEnchant(bookSlot.getItem(), ench, level);
 
-            boolean requiresBook = rolled.requiresBook();
+            boolean requiresBook = EnchantingHelper.isEnchantedBookRequired(player.serverLevel(), ench);
 
             boolean movedAnything = false;
-            boolean requirementsInitiallyMet = creative || requirementsMet(rolled, hasOverrideBook, menu);
+            boolean requirementsInitiallyMet =
+                    creative || requirementsMet(rolled, hasOverrideBook, requiresBook, ench, level, menu);
 
             if (!creative) {
                 if (requiresBook) {
@@ -284,11 +286,14 @@ public final class Network {
     private static boolean requirementsMet(
             org.blahajenjoyer.enchanting_improvements.enchanting.EnchantCosts.Rolled rolled,
             boolean hasOverrideBook,
+            boolean requiresBook,
+            Enchantment ench,
+            int level,
             EnchantMenu menu
     ) {
-        if (hasOverrideBook || rolled.requiresBook()) {
+        if (hasOverrideBook || requiresBook) {
             ItemStack book = menu.getSlot(EnchantMenu.SLOT_BOOK).getItem();
-            return !book.isEmpty();
+            return isBookWithEnchant(book, ench, level);
         }
         if (rolled.lapis() > 0) {
             ItemStack lap = menu.getSlot(EnchantMenu.SLOT_LAPIS).getItem();

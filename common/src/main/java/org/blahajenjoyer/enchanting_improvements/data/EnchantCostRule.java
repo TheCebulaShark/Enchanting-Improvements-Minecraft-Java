@@ -11,17 +11,13 @@ public record EnchantCostRule(
         Optional<Integer> playerLevelReq,
         Optional<Integer> xpCost,
         Optional<Integer> lapis,
-        Optional<List<MaterialCost>> materials,
-        Optional<Boolean> requiresEnchantedBook,
-        Optional<Boolean> overenchanting
+        Optional<List<MaterialCost>> materials
 ) {
     public static final Codec<EnchantCostRule> CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.optionalFieldOf("shelf_power").forGetter(EnchantCostRule::shelfPower),
             Codec.INT.optionalFieldOf("player_level_req").forGetter(EnchantCostRule::playerLevelReq),
             Codec.INT.optionalFieldOf("xp_cost").forGetter(EnchantCostRule::xpCost),
             Codec.INT.optionalFieldOf("lapis").forGetter(EnchantCostRule::lapis),
-            MaterialCost.CODEC.listOf().optionalFieldOf("materials").forGetter(EnchantCostRule::materials),
-            Codec.BOOL.optionalFieldOf("requires_enchanted_book").forGetter(EnchantCostRule::requiresEnchantedBook),
-            Codec.BOOL.optionalFieldOf("overenchanting").forGetter(EnchantCostRule::overenchanting)
+            MaterialCost.CODEC.listOf().optionalFieldOf("materials").forGetter(EnchantCostRule::materials)
     ).apply(i, EnchantCostRule::new));
 }

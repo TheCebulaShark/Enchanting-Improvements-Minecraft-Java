@@ -25,7 +25,7 @@ public final class EnchantCostData {
 
     public record Resolved(
             int shelfPower, int playerLevelReq, int xpCost, int lapis,
-            List<MaterialCost> materials, boolean requiresEnchantedBook
+            List<MaterialCost> materials
     ) {}
 
     public static void registerReloaders() {
@@ -116,10 +116,8 @@ public final class EnchantCostData {
         Optional<List<MaterialCost>> mats =
                 firstPresent(opt(spec, r -> r.materials().map(EnchantCostData::filterEnabled)),
                         uniLevel(uni, level, r -> r.materials().map(EnchantCostData::filterEnabled)));
-        Optional<Boolean> bookReq = firstPresent(opt(spec, EnchantCostRule::requiresEnchantedBook),
-                uniLevel(uni, level, EnchantCostRule::requiresEnchantedBook));
 
-        if (shelf.isEmpty() || plevel.isEmpty() || xp.isEmpty() || lapis.isEmpty() || bookReq.isEmpty()) {
+        if (shelf.isEmpty() || plevel.isEmpty() || xp.isEmpty() || lapis.isEmpty()) {
             return Optional.empty();
         }
         return Optional.of(new Resolved(
@@ -127,8 +125,7 @@ public final class EnchantCostData {
                 plevel.get(),
                 xp.get(),
                 lapis.get(),
-                mats.orElse(List.of()),
-                bookReq.get()
+                mats.orElse(List.of())
         ));
     }
 
